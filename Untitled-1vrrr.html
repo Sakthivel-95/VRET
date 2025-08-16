@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VR Therapy Session - VRET</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #000;
+            color: white;
+            overflow: hidden;
+            cursor: none;
+        }
+
+        /* VR Viewport */
+        .vr-viewport {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            perspective: 1000px;
+        }
+
+        /* VR Scene Container */
+        .vr-scene {
+            position: relative;
+            width: 90%;
+            height: 80%;
+            border-radius: 20px;
+            background: linear-gradient(45deg, #2c3e50, #34495e);
+            border: 2px solid rgba(76, 175, 80, 0.5);
+            box-shadow: 0 0 50px rgba(76, 175, 80, 0.3);
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        /* VR Environment Backgrounds */
+        .environment {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            transition: opacity 1s ease;
+            background-size: cover;
+            background-position: center;
+        }
+
+        .environment.active {
+            opacity: 1;
+        }
+
+        .env-airplane {
+            background: linear-gradient(to bottom, #87CEEB 0%, #98D8E8 50%, #B0E0E6 100%);
+            position: relative;
+        }
+
+        .env-elevator {
+            background: linear-gradient(to bottom, #2c3e50 0%, #34495e 50%, #2c3e50 100%);
+            position: relative;
+        }
+
+        .env-stage {
+            background: linear-gradient(to bottom, #8B4513 0%, #D2691E 30%, #F4A460 100%);
+            position: relative;
+        }
+
+        /* VR Objects */
+        .vr-object {
+            position: absolute;
+            transition: all 0.5s ease;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        /* Airplane objects */
+        .airplane-window {
+            width: 200px;
+            height: 150px;
+            background: rgba(135, 206, 235, 0.8);
+            border: 8px solid #666;
+            border-radius: 20px;
+            top: 30%;
+            left: 20%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .clouds {
+            width: 80px;
+            height: 40px;
+            background: white;
+            border-radius: 50px;
+            position: absolute;
+            animation: drift 8s linear infinite;
+        }
+
+        @keyframes drift {
+            0% { transform: translateX(-100px); }
+            100% { transform: translateX(400px); }
+        }
+
+        .airplane-seat {
+            width: 100px;
+            height: 120px;
+            background: #4a4a4a;
+            border-radius: 10px;
+            top: 50%;
+            right: 20%;
+        }
+
+        /* Elevator objects */
+        .elevator-walls {
+            position: absolute;
+            top: 0;
+            left: 10%;
+            right: 10%;
+            bottom: 0;
+            background: linear-gradient(to right, #2c3e50, #34495e, #2c3e50);
+            border-left: 3px solid #555;
+            border-right: 3px solid #555;
+        }
+
+        .elevator-buttons {
+            position: absolute;
+            right: 20px;
+            top: 30%;
+            width: 60px;
+            height: 200px;
+            background: #333;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-around;
+            padding: 10px;
+        }
+
+        .elevator-button {
+            width: 40px;
+            height: 30px;
+            background: #666;
+            border-radius: 5px;
+            border: 1px solid #888;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .elevator-button:hover {
+            background: #4CAF50;
+            box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+        }
+
+        /* Stage objects */
+        .stage-platform {
+            position: absolute;
+            bottom: 0;
+            left: 20%;
+            right: 20%;
+            height: 150px;
+            background: linear-gradient(to bottom, #8B4513, #A0522D);
+            border-radius: 20px 20px 0 0;
+        }
+
+        .audience {
+            position: absolute;
+            bottom: 10px;
+            left: 10%;
+            right: 10%;
+            height: 100px;
+            background: repeating-linear-gradient(
+                to right,
+                #333 0px,
+                #333 20px,
+                #444 20px,
+                #444 40px
+            );
+            border-radius: 10px;
+        }
+
+        .spotlight {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 200px;
+            height: 200px;
+            background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, transparent 70%);
+            border-radius: 50%;
+            animation: spotlight 4s ease-in-out infinite alternate;
+        }
+
+        @keyframes spotlight {
+            0% { opacity: 0.3; transform: translateX(-50%) scale(1); }
+            100% { opacity: 0.6; transform: translateX(-50%) scale(1.2); }
+        }
+
+        /* VR HUD Interface */
+        .vr-hud {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        .hud-element {
+            position: absolute;
+            background: rgba(76, 175, 80, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(76, 175, 80, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            pointer-events: auto;
+        }
+
+        .anxiety-meter {
+            top: 20px;
+            left: 20px;
+            width: 200px;
+        }
+
+        .anxiety-bar {
+            width: 100%;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .anxiety-fill {
+            height: 100%;
+            background: linear-gradient(to right, #4CAF50, #FFC107, #FF5722);
+            width: 30%;
+            transition: width 2s ease;
+            border-radius: 10px;
+        }
+
+        .session-info {
+            top: 20px;
+            right: 20px;
+            text-align: right;
+        }
+
+        .breathing-guide {
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 300px;
+            text-align: center;
+        }
+
+        .breath-circle {
+            width: 80px;
+            height: 80px;
+            border: 3px solid #4CAF50;
+            border-radius: 50%;
+            margin: 0 auto 15px;
+            position: relative;
+            animation: breathe 4s ease-in-out infinite;
+        }
+
+        @keyframes breathe {
+            0%, 100% { transform: scale(1); opacity: 0.7; }
+            50% { transform: scale(1.3); opacity: 1; }
+        }
+
+        .breath-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .controls {
+            bottom: 20px;
+            right: 20px;
+        }
+
+        .control-btn {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            border: none;
+            color: white;
+            padding: 12px 20px;
+            margin: 5px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .control-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(76, 175, 80, 0.4);
+        }
+
+        .control-btn.pause {
+            background: linear-gradient(45deg, #FF5722, #E64A19);
+        }
+
+        .control-btn.settings {
+            background: linear-gradient(45deg, #2196F3, #1976D2);
+        }
+
+        /* Progress Indicator */
+        .progress-ring {
+            position: absolute;
+            top: 50%;
+            left: 20px;
+            transform: translateY(-50%);
+            width: 60px;
+            height: 60px;
+        }
+
+        .progress-circle {
+            width: 100%;
+            height: 100%;
+            transform: rotate(-90deg);
+        }
+
+        .progress-circle circle {
+            fill: none;
+            stroke: rgba(76, 175, 80, 0.2);
+            stroke-width: 4;
+        }
+
+        .progress-circle .progress {
+            stroke: #4CAF50;
+            stroke-linecap: round;
+            stroke-dasharray: 157;
+            stroke-dashoffset: 157;
+            animation: progress 20s linear infinite;
+        }
+
+        @keyframes progress {
+            0% { stroke-dashoffset: 157; }
+            100% { stroke-dashoffset: 0; }
+        }
+
+        /* VR Transition Effects */
+        .fade-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: black;
+            opacity: 0;
+            transition: opacity 1s ease;
+            z-index: 200;
+        }
+
+        .fade-overlay.active {
+            opacity: 1;
+        }
+
+        /* Loading Screen */
+        .vr-loading {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 300;
+        }
+
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(76, 175, 80, 0.3);
+            border-left: 4px solid #4CAF50;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            font-size: 18px;
+            color: #4CAF50;
+            text-align: center;
+        }
+
+        /* Immersion Feedback */
+        .immersion-feedback {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(76, 175, 80, 0.9);
+            padding: 20px 30px;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: bold;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            z-index: 150;
+        }
+
+        .immersion-feedback.show {
+            opacity: 1;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .vr-scene {
+                width: 95%;
+                height: 85%;
+            }
+            
+            .hud-element {
+                padding: 10px;
+                font-size: 14px;
+            }
+            
+            .breathing-guide {
+                width: 250px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="vr-viewport">
+        <!-- VR Scene Container -->
+        <div class="vr-scene" id="vrScene">
+            <!-- Environment: Airplane -->
+            <div class="environment env-airplane active" id="env-airplane">
+                <div class="vr-object airplane-window">
+                    <div class="clouds" style="top: 20%; animation-delay: 0s;"></div>
+                    <div class="clouds" style="top: 60%; animation-delay: 2s;"></div>
+                    <div class="clouds" style="top: 40%; animation-delay: 4s;"></div>
+                </div>
+                <div class="vr-object airplane-seat"></div>
+            </div>
+
+            <!-- Environment: Elevator -->
+            <div class="environment env-elevator" id="env-elevator">
+                <div class="elevator-walls"></div>
+                <div class="elevator-buttons">
+                    <div class="elevator-button">10</div>
+                    <div class="elevator-button">9</div>
+                    <div class="elevator-button">8</div>
+                    <div class="elevator-button">7</div>
+                    <div class="elevator-button">6</div>
+                </div>
+            </div>
+
+            <!-- Environment: Stage -->
+            <div class="environment env-stage" id="env-stage">
+                <div class="spotlight"></div>
+                <div class="stage-platform"></div>
+                <div class="audience"></div>
+            </div>
+
+            <!-- Fade Overlay for Transitions -->
+            <div class="fade-overlay" id="fadeOverlay"></div>
+        </div>
+
+        <!-- VR HUD Interface -->
+        <div class="vr-hud">
+            <!-- Anxiety Meter -->
+            <div class="hud-element anxiety-meter">
+                <div style="font-size: 14px; font-weight: bold;">Anxiety Level</div>
+                <div class="anxiety-bar">
+                    <div class="anxiety-fill" id="anxietyFill"></div>
+                </div>
+                <div style="font-size: 12px; margin-top: 5px; opacity: 0.8;">Relax and breathe</div>
+            </div>
+
+            <!-- Session Info -->
+            <div class="hud-element session-info">
+                <div style="font-size: 16px; font-weight: bold;" id="sessionTitle">Aerophobia Therapy</div>
+                <div style="font-size: 12px; opacity: 0.8; margin-top: 5px;">Session: <span id="sessionTime">5:30</span></div>
+                <div style="font-size: 12px; opacity: 0.8;">Level: <span id="sessionLevel">Beginner</span></div>
+            </div>
+
+            <!-- Breathing Guide -->
+            <div class="hud-element breathing-guide">
+                <div class="breath-circle">
+                    <div class="breath-text" id="breathText">Inhale</div>
+                </div>
+                <div style="font-size: 14px;">Follow the breathing guide</div>
+            </div>
+
+            <!-- Controls -->
+            <div class="hud-element controls">
+                <button class="control-btn" onclick="togglePause()">⏸️ Pause</button>
+                <button class="control-btn settings" onclick="openSettings()">⚙️ Settings</button>
+                <button class="control-btn" onclick="switchEnvironment()">🔄 Switch</button>
+                <button class="control-btn pause" onclick="exitSession()">❌ Exit</button>
+            </div>
+
+            <!-- Progress Ring -->
+            <div class="progress-ring">
+                <svg class="progress-circle" width="60" height="60">
+                    <circle cx="30" cy="30" r="25"></circle>
+                    <circle cx="30" cy="30" r="25" class="progress"></circle>
+                </svg>
+            </div>
+        </div>
+
+        <!-- Loading Screen -->
+        <div class="vr-loading" id="vrLoading">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">
+                <div>Initializing VR Environment...</div>
+                <div style="font-size: 14px; margin-top: 10px; opacity: 0.7;">Please put on your VR headset</div>
+            </div>
+        </div>
+
+        <!-- Immersion Feedback -->
+        <div class="immersion-feedback" id="immersionFeedback">
+            Great! You're making progress! 🌟
+        </div>
+    </div>
+
+    <script>
+        let currentEnvironment = 0;
+        let sessionPaused = false;
+        let sessionTime = 330; // 5:30 in seconds
+        let anxietyLevel = 30;
+        let breathingPhase = 'inhale';
+
+        const environments = ['env-airplane', 'env-elevator', 'env-stage'];
+        const sessionTitles = ['Aerophobia Therapy', 'Claustrophobia Therapy', 'Glossophobia Therapy'];
+
+        // Initialize VR Session
+        function initializeVRSession() {
+            setTimeout(() => {
+                document.getElementById('vrLoading').style.display = 'none';
+                startSession();
+            }, 3000);
+        }
+
+        // Start therapy session
+        function startSession() {
+            // Start session timer
+            setInterval(updateSessionTime, 1000);
+            
+            // Start breathing guide
+            setInterval(updateBreathingGuide, 2000);
+            
+            // Update anxiety levels
+            setInterval(updateAnxietyLevel, 3000);
+            
+            // Show periodic feedback
+            setInterval(showFeedback, 15000);
+        }
+
+        // Update session time
+        function updateSessionTime() {
+            if (!sessionPaused && sessionTime > 0) {
+                sessionTime--;
+                const minutes = Math.floor(sessionTime / 60);
+                const seconds = sessionTime % 60;
+                document.getElementById('sessionTime').textContent = 
+                    `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                
+                if (sessionTime === 0) {
+                    completeSession();
+                }
+            }
+        }
+
+        // Update breathing guide
+        function updateBreathingGuide() {
+            const breathText = document.getElementById('breathText');
+            breathingPhase = breathingPhase === 'inhale' ? 'exhale' : 'inhale';
+            breathText.textContent = breathingPhase === 'inhale' ? 'Inhale' : 'Exhale';
+            
+            // Simulate calming effect
+            if (breathingPhase === 'exhale' && anxietyLevel > 10) {
+                anxietyLevel = Math.max(10, anxietyLevel - 2);
+            }
+        }
+
+        // Update anxiety level
+        function updateAnxietyLevel() {
+            // Simulate gradual improvement
+            if (!sessionPaused) {
+                anxietyLevel = Math.max(15, anxietyLevel - Math.random() * 3);
+                const anxietyFill = document.getElementById('anxietyFill');
+                anxietyFill.style.width = anxietyLevel + '%';
+                
+                // Change color based on anxiety level
+                if (anxietyLevel < 30) {
+                    anxietyFill.style.background = 'linear-gradient(to right, #4CAF50, #8BC34A)';
+                } else if (anxietyLevel < 60) {
+                    anxietyFill.style.background = 'linear-gradient(to right, #FFC107, #FF9800)';
+                } else {
+                    anxietyFill.style.background = 'linear-gradient(to right, #FF5722, #F44336)';
+                }
+            }
+        }
+
+        // Show immersion feedback
+        function showFeedback() {
+            const feedback = document.getElementById('immersionFeedback');
+            const messages = [
+                "Great! You're making progress! 🌟",
+                "Keep breathing deeply 🌬️",
+                "You're doing wonderfully! 💚",
+                "Stay focused and relaxed 🧘‍♀️",
+                "Excellent progress! 🎯"
+            ];
+            
+            feedback.textContent = messages[Math.floor(Math.random() * messages.length)];
+            feedback.classList.add('show');
+            
+            setTimeout(() => {
+                feedback.classList.remove('show');
+            }, 3000);
+        }
+
+        // Switch VR environment
+        function switchEnvironment() {
+            const fadeOverlay = document.getElementById('fadeOverlay');
+            fadeOverlay.classList.add('active');
+            
+            setTimeout(() => {
+                // Hide current environment
+                document.getElementById(environments[currentEnvironment]).classList.remove('active');
+                
+                // Switch to next environment
+                currentEnvironment = (currentEnvironment + 1) % environments.length;
+                
+                // Show new environment
+                document.getElementById(environments[currentEnvironment]).classList.add('active');
+                document.getElementById('sessionTitle').textContent = sessionTitles[currentEnvironment];
+                
+                // Remove fade overlay
+                fadeOverlay.classList.remove('active');
+            }, 500);
+        }
+
+        // Toggle pause/resume
+        function togglePause() {
+            sessionPaused = !sessionPaused;
+            const pauseBtn = event.target;
+            if (sessionPaused) {
+                pauseBtn.textContent = '▶️ Resume';
+                pauseBtn.style.background = 'linear-gradient(45deg, #4CAF50, #45a049)';
+            } else {
+                pauseBtn.textContent = '⏸️ Pause';
+                pauseBtn.style.background = 'linear-gradient(45deg, #FF5722, #E64A19)';
+            }
+        }
+
+        // Open settings (placeholder)
+        function openSettings() {
+            alert('Settings panel would open here in a full VR implementation');
+        }
+
+        // Exit session
+        function exitSession() {
+            if (confirm('Are you sure you want to exit the therapy session?')) {
+                window.history.back();
+            }
+        }
+
+        // Complete session
+        function completeSession() {
+            const feedback = document.getElementById('immersionFeedback');
+            feedback.textContent = '🎉 Session Complete! Well done!';
+            feedback.style.background = 'linear-gradient(45deg, #4CAF50, #45a049)';
+            feedback.classList.add('show');
+            
+            setTimeout(() => {
+                if (confirm('Session completed successfully! Return to main menu?')) {
+                    window.history.back();
+                }
+            }, 3000);
+        }
+
+        // Add realistic VR head movement simulation
+        let tiltX = 0, tiltY = 0;
+        
+        document.addEventListener('mousemove', (e) => {
+            const centerX = window.innerWidth / 2;
+            const centerY = window.innerHeight / 2;
+            
+            tiltX = (e.clientY - centerY) / centerY * 5;
+            tiltY = (e.clientX - centerX) / centerX * 5;
+            
+            document.getElementById('vrScene').style.transform = 
+                `rotateX(${tiltX}deg) rotateY(${tiltY}deg)`;
+        });
+
+        // Keyboard controls for VR simulation
+        document.addEventListener('keydown', (e) => {
+            switch(e.key) {
+                case ' ': // Spacebar
+                    togglePause();
+                    break;
+                case 'Enter':
+                    switchEnvironment();
+                    break;
+                case 'Escape':
+                    exitSession();
+                    break;
+            }
+        });
+
+        // Initialize the VR session
+        initializeVRSession();
+    </script>
+</body>
+</html>
